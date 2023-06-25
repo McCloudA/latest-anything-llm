@@ -1,0 +1,87 @@
+Aaron McCloud	    					         Software Engineering Leader
+(206) 949-9806   |  McCloudA@gmail.com    AWS Certified: Solutions Architect & Developer (Associate)
+CEO & Senior Software Engineer
+McCloud Industries Consulting
+Remote
+2.2023 – Present
+
+Currently consulting with a number of companies, including Amarica4Ukraine, to build out their back-end and front-end stacks, focusing on serverless Node back-end on AWS and JavaScript frameworks for the front-end.
+Technology Used: React, JavaScript, Node, AWS, Unix/Linux, Git, CSS/SCSS, Moment.js, Figma, Azure
+Director of Engineering
+initio software
+Seattle
+8.2022 – 2.2023
+
+Led team that built out the entire front-end & half of the back-end of flagship 409A Valuation product, allowing the acquisition of our first 20 customers.
+Worked on automated email services and collaborated on marketing efforts.
+Technology Used: React, JS, AWS, Terraform, Unix/Linux, Git, Moment.js, Node, Figma
+Software Engineer II, Cloud Architect
+Sinclair
+Seattle
+10.2020 – 12.2021
+
+Led a remote team of 3 software engineers in Ukraine & onboarded two junior engineers.
+Built proof-of-concepts for encrypted streaming mobile app integration, showing it could securely deliver streaming content to over 100,000,000 million viewers on mobile devices, which we executed on.
+Architected & built out POC for a multi-platform push-notifications system, enabling Sinclair to keep in touch with over 100,000,000 of their viewers.
+Technology Used: React, JavaScript, Node, AWS, Unix/Linux, Git, CSS/SCSS, Python, Figma, Azure
+Software Engineer II
+TEKsystems (Disney contract)
+
+
+Seattle
+2.2019 – 4.2020
+
+Led mobile team integration with OneID V4 plan, ensuring sign-on for millions of Disney customers, and ensuring safe intake of the billions of dollars flowing through Disney digital services.
+Full-Stack Engineer
+TEKsystems (Qualtrics contract)
+Seattle
+10.2018 – 12.2018
+
+Led the team of 3 engineers building automated test suite, decreasing test time from 2+ weeks to ~3 hours.
+Test suite ensured robustness of software and ensured the safety of end-user data in preparation for SAP acquisition, helping the multi-billion dollar acquisition to go through.
+​CEO/Full-Stack Engineer
+CoralDocs
+Seattle
+9.2017 – 9.2018
+
+Engineered CoralDocs, sorting 100,000+ docs a day, decreasing paralegal time by 20+ hrs per. week. 
+Customer Solutions Engineer
+KForce (Comcast Contract)
+Seattle
+4.2017 – 8.2017
+
+Engineered internal video streaming tool to support metadata tagging for tens of thousands of videos daily, guaranteeing Comcast’s 50 million of revenue from those video streaming services.
+Front-End Engineer
+Avalara
+Seattle
+10.2015 – 3.2017
+Software Development Engineer
+KForce (Microsoft Contract)
+Seattle
+3.2015 – 9.2015
+Web Developer
+TEKsystems (Amazon Contract)
+Seattle
+12.2014 – 2.2015
+Front-End Engineer
+RosterPark (RealSelf contract)
+Seattle
+11.2014 – 12.2014
+English Teacher
+Coco Juku (COCO塾)
+Tokyo
+01.2013 – 07.2013
+
+EDUCATION:				     Bachelor of Arts ~ Chinese	          	    Reed College	        2006 – 2010
+
+Personal:
+2008:		One of only 5 Japanese style swordsmen to complete Senbongiri swordsmanship challenge.
+2006 - 2010:	Led the Reed College Japanese Sword Club.
+2012:		Led and organized “dance bomb” of Lindsey Stirling concert with dancers from the Seattle Blues and Fusions dance communities.
+2013:		Socially maneuvered my way into a private training session with the martial arts instructor Tatsuo Kimura, a reclusive Daito Ryu headmaster.
+2016 - 2018:	Served on the Access to Justice Technology Advisory Committee for the Washington State Bar Association.
+2017:		Helped organize the yearly banquet for QLaw: The LGBTQ+ Bar Association of Washington.
+2017:		Started my own legal tech startup, CoralDocs.
+2019 - Present:	Leading and organizing the Tech Dinner <https://TechDinner.io>, an exclusive monthly get-together with entrepreneurs, investors, and technologists in Seattle.
+2022 & 2023:	Helped organize Seattle Irish Week.
+2022 - Present:	Member of the Board of the Seattle Irish Heritage Club.
