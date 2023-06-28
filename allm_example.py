@@ -41,9 +41,9 @@ import json
 import shutil
 
 # where the text files are
-anythingllm_summarydir = '/Users/aaronmccloud/Downloads/latestanythingllmcode'
+anythingllm_summarydir = '/home/frog/repos/latest-anything-llm'
 # where AnythingLLM is installed
-anythingllm_rootdir = '/Users/aaronmccloud/Downloads/anything-llm'
+anythingllm_rootdir = '/home/frog/repos/anything-llm'
 
 # the new domain name to construct
 tenant_name = 'test_aaron_text'

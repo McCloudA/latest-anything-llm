@@ -37,6 +37,23 @@ class TranscriptEmbedder:
     def return_topic_mentions(self,topic):
         outstr = "What is known about " + topic + "?. Reproduce every statement where the term '" + topic + "' is mentioned exactly. Structure the output as a list of json objects, one object for each mention, with the keys \'speaker_name\', and \' conversation_text\'. Do not write anything before or after this data structure."
         return outstr
+    
+    def return_address_query(self,applicant_name):
+        outstr = "What is " + applicant_name + "'s address? Structure the output as a json object, with the keys 'address','city','state', and 'zipcode'. Do not write anything before or after this data structure."
+        #outstr = "What is this person's full malinig address. Structure the output as a json object, with the keys 'address','city','state', and 'zipcode'. Do not write anything before or after this data structure."
+        return outstr
+    
+    def return_educationalBackground_query(self, applicant_name):
+        outstr = "What is " + applicant_name + ''''s educational background? Format the output as a list of json objects, with the following structure:  [{institution: 'institution_1',degree: 'degree_1',fieldOfStudy: 'field_of_study',startDate: ['YYYY'],endDate: ['YYYY']},{...}]  Do not write anything before or after this data structure.'''
+        return outstr
+    
+    def return_workHistory_query(self, applicant_name):
+        outstr = "What is " + applicant_name + ''''s work history? Format the output as a list of json objects, with the following structure: [{employer: 'employer_company',position: 'job_title',location: 'employment_location',startDate: ['YYYY-MM-DD'],endDate: ['YYYY-MM-DD'],description: 'job_description_overview',responsibilities: ['job_responsibility_1','job_responsibility_2','...']},{...}]  Do not write anything before or after this data structure.'''
+        return outstr
+    
+    def return_skills_query(self,applicant_name):
+        outstr = "what technical skills does " + applicant_name + " have? Structure the output as a python list, like ['skill1','skill2',...]. Do not write anything before or after this data structure."
+        return outstr
 
     def set_params(self,anythingllm_summarydir = '/home/sean/repos/playground/sean/transcript_extraction', anythingllm_rootdir = '/home/sean/repos/anything-llm'):
         self.anythingllm_summarydir = anythingllm_summarydir # where to put the input files, and where the summary file will go.
@@ -68,6 +85,7 @@ class TranscriptEmbedder:
         headers = {"Content-Type": "application/json"}
 
         response = requests.post(url, data, headers=headers)
+        print('Making new workspace:',self.pinecone_domain_name)
 
         if response.status_code == 200:
             print("POST request successful.")
@@ -82,6 +100,28 @@ class TranscriptEmbedder:
         print("Headers:", headers)
         print("Content-Type Header:", content_type)
 
+    def delete_workspace(self,domain_name):
+        print('Attempting to delete workspace ', domain_name)
+        headers = {"Content-Type": "application/json"}
+        response = requests.delete("http://localhost:3001/api/workspace/" + domain_name, headers=headers)
+        print(response.status_code)
+        print(response.text)
+
+    def does_workspace_exist(self,domain_name):
+        headers = {"Content-Type": "application/json"}
+        response = requests.get("http://localhost:3001/api/workspace/" + domain_name, {}, headers=headers)
+        if response.status_code == 200:
+                domain_details = json.loads(response.text)['workspace']
+                if domain_details:
+                    print("Found domain name: ", domain_name)
+                    return True
+                else:
+                    print('No such domain: ', domain_name)
+                    return False
+        else:
+            print(f"POST request failed with status code: {response.status_code}")
+            return False
+
     def add_embedded_files_to_workspace(self):
         headers = {"Content-Type": "application/json"}
         response = requests.get("http://localhost:3001/api/system/local-files", {}, headers=headers)
@@ -90,7 +130,8 @@ class TranscriptEmbedder:
             #print('ITEM:', item)
             for fnm in self.input_file_set:
                 #print('fnm: ',fnm)
-                fnm_fragment = fnm.replace('/','').replace('_','-').rstrip('.').lstrip('.').lstrip('.').split('.')[0]
+                fnm_fragment = fnm.replace('/','').replace(' ','-').replace('_','-').rstrip('.').lstrip('.').lstrip('.').split('.')[0] # good enough?
+                #print('fnm_fragment: ',fnm_fragment)
                 if fnm_fragment.lower() in item['name'].lower():
                     keep_files.append(item['name'])
                     continue
@@ -101,7 +142,7 @@ class TranscriptEmbedder:
         for fname in keep_files:
             url = "http://localhost:3001/api/workspace/" + self.pinecone_domain_name + "/update-embeddings"
             data = '{"adds": ["custom-documents/' + fname + '"]}'
-            print(data)
+            #print(data)
             response = requests.post(url, data, headers=headers)
 
             if response.status_code == 200:
@@ -113,10 +154,10 @@ class TranscriptEmbedder:
         headers = response.headers
         content_type = response.headers.get("content-type")
 
-        print("Response Content:", content)
-        print("Status Code:", status_code)
-        print("Headers:", headers)
-        print("Content-Type Header:", content_type)
+        #print("Response Content:", content)
+        #print("Status Code:", status_code)
+        #print("Headers:", headers)
+        #print("Content-Type Header:", content_type)
     
     def migrate_input_files(self):
         if self.input_file_set is None:
@@ -124,12 +165,20 @@ class TranscriptEmbedder:
             return 1
         else:
             for fte in self.input_file_set:
+                # WAIT - first let's check if there's a file like fte in self.anythingllm_check_dir already.
+                # if there is, don't move this new set, we already have them.
+                existing_encoded_filenames = os.listdir(self.anythingllm_check_dir)
+                file_already_encoded = any([fte in i for i in existing_encoded_filenames])
+                if file_already_encoded:
+                    print('A version of the file was already encoded: ', fte)
+                    continue
+
                 source = os.path.abspath(fte)
                 print('copying: ',source)
                 destination = join(os.path.abspath(self.anythingllm_input_dir))
                 print('to: ', destination)
                 abc = shutil.copy(source, destination)
-                print(abc)
+                #print(abc)
                 #wait a bit to let the embedding happen:
                 time.sleep(2.4)
                 #now let's make sure this got in and got processed:
@@ -189,6 +238,148 @@ class TranscriptEmbedder:
                 print('Error in Returned data structure, retrying query: ')
         return ret_json
     
+    def get_address_set(self,applicant_name):
+        url = "http://localhost:3001/api/workspace/" + self.pinecone_domain_name + "/chat"
+        data = '{"message": "' + self.return_address_query(applicant_name) + '","mode":"query"}'
+        headers = {"Content-Type": "application/json"}
+
+        address = None
+        city = None
+        state = None
+        zipcode = None
+        counter = 0
+        max_iter = 3
+        while address is None and counter < max_iter:
+            counter = counter + 1
+            time.sleep(0.4) # avoid hitting rate limiter
+            try:
+                response = requests.post(url, data, headers=headers)
+                if response.status_code == 200:
+                    print("POST request successful.")
+                else:
+                    print(f"POST request failed with status code: {response.status_code}")
+                content = response.text
+                status_code = response.status_code
+                headers = response.headers
+                content_type = response.headers.get("content-type")
+                print("Response Content:", content)
+                #print("Status Code:", status_code)
+                #print("Headers:", headers)
+                #print("Content-Type Header:", content_type)
+                out_response = json.loads(content)['textResponse']
+                address = json.loads(out_response)['address'] #if this breaks, we didn't get a correct json format output
+                city = json.loads(out_response)['city']
+                state = json.loads(out_response)['state']
+                zipcode = json.loads(out_response)['zipcode']
+                #'address','city','state', and 'zipcode'
+            except Exception as e:
+                print('Error in Returned data structure, retrying query: ')
+        return address,city,state,zipcode
+    
+
+    def get_skills_set(self,applicant_name):
+        url = "http://localhost:3001/api/workspace/" + self.pinecone_domain_name + "/chat"
+        data = '{"message": "' + self.return_skills_query(applicant_name) + '","mode":"query"}'
+        headers = {"Content-Type": "application/json"}
+
+        skills = None
+        counter = 0
+        max_iter = 3
+        while skills is None and counter < max_iter:
+            counter = counter + 1
+            time.sleep(0.4) # avoid hitting rate limiter
+            try:
+                response = requests.post(url, data, headers=headers)
+                if response.status_code == 200:
+                    print("POST request successful.")
+                else:
+                    print(f"POST request failed with status code: {response.status_code}")
+                content = response.text
+                status_code = response.status_code
+                headers = response.headers
+                content_type = response.headers.get("content-type")
+                print("Response Content:", content)
+                #print("Status Code:", status_code)
+                #print("Headers:", headers)
+                #print("Content-Type Header:", content_type)
+                out_response = json.loads(content)['textResponse']
+                #skills = json.loads(out_response) #if this breaks, we didn't get a correct json format output
+                skills = [str(i.replace('"','').replace("'",'')) for i in out_response.strip('][').split(', ')]
+                # special workaround - occasionally we get a good structure but it's still wrong
+                if any(['sorry' in i.lower() for i in skills]):
+                    skills = None
+            except Exception as e:
+                print('Error in Returned data structure, retrying query: ')
+        return skills
+
+    def get_educationalBackground_set(self,applicant_name):
+        url = "http://localhost:3001/api/workspace/" + self.pinecone_domain_name + "/chat"
+        data = '{"message": "' + self.return_educationalBackground_query(applicant_name) + '","mode":"query"}'
+        headers = {"Content-Type": "application/json"}
+
+        #print('DATA:')
+        #print(data)
+
+        educationalBackground = None
+        counter = 0
+        max_iter = 3
+        while educationalBackground is None and counter < max_iter:
+            counter = counter + 1
+            time.sleep(0.4) # avoid hitting rate limiter
+            try:
+                response = requests.post(url, data, headers=headers)
+                if response.status_code == 200:
+                    print("POST request successful.")
+                else:
+                    print(f"POST request failed with status code: {response.status_code}")
+                content = response.text
+                status_code = response.status_code
+                headers = response.headers
+                content_type = response.headers.get("content-type")
+                print("Response Content:", content)
+                #print("Status Code:", status_code)
+                #print("Headers:", headers)
+                #print("Content-Type Header:", content_type)
+                out_response = json.loads(content)['textResponse']
+                educationalBackground = json.loads(out_response) #if this breaks, we didn't get a correct json format output
+            except Exception as e:
+                print('Error in Returned data structure, retrying query: ')
+        return educationalBackground
+    
+    def get_workHistory_set(self,applicant_name):
+        url = "http://localhost:3001/api/workspace/" + self.pinecone_domain_name + "/chat"
+        data = '{"message": "' + self.return_workHistory_query(applicant_name) + '","mode":"query"}'
+        headers = {"Content-Type": "application/json"}
+
+        #print('DATA:')
+        #print(data)
+
+        workHistory = None
+        counter = 0
+        max_iter = 3
+        while workHistory is None and counter < max_iter:
+            counter = counter + 1
+            time.sleep(0.4) # avoid hitting rate limiter
+            try:
+                response = requests.post(url, data, headers=headers)
+                if response.status_code == 200:
+                    print("POST request successful.")
+                else:
+                    print(f"POST request failed with status code: {response.status_code}")
+                content = response.text
+                status_code = response.status_code
+                headers = response.headers
+                content_type = response.headers.get("content-type")
+                print("Response Content:", content)
+                #print("Status Code:", status_code)
+                #print("Headers:", headers)
+                #print("Content-Type Header:", content_type)
+                out_response = json.loads(content)['textResponse']
+                workHistory = json.loads(out_response) #if this breaks, we didn't get a correct json format output
+            except Exception as e:
+                print('Error in Returned data structure, retrying query: ')
+        return workHistory
+
 
     def return_simple_query(self,query_text):
         url = "http://localhost:3001/api/workspace/" + self.pinecone_domain_name + "/chat"
