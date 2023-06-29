@@ -9,6 +9,17 @@ import requests
 import json
 import yaml
 import boto3
+from decimal import Decimal
+
+class DecimalEncoder(json.JSONEncoder):
+  def default(self, obj):
+    if isinstance(obj, Decimal):
+      return str(obj)
+    if isinstance(obj,np.ndarray):
+      return obj.tolist()
+    return json.JSONEncoder.default(self, obj)
+  
+
 sys.path.insert(1,'/home/frog/repos/automating-jobs-backend/playground/python_db_tests')
 from jd_tools import ContentEmbedder, JobScorer, CheekiFileHandler
 
@@ -74,7 +85,8 @@ table_response = table.scan()
 #     id = item['id']
 #     print(id)
 # brek
-for item in table_response['Items'][0:10]:
+items_to_change = []
+for item in table_response['Items']: #[0:10]:
     id = item['id']
     print('Checking out User ID: ' , id)
     print(item)
@@ -132,7 +144,7 @@ for item in table_response['Items'][0:10]:
                 item['state'] = state
                 item['zipcode'] = zipcode
                 # put (idempotent)
-                table.put_item(Item=item)
+                #table.put_item(Item=item)
 
         if ('skills' not in item) or (item['skills'] == '') or skills_override:
             # make the thing of interest:
@@ -142,7 +154,7 @@ for item in table_response['Items'][0:10]:
             # update this record:
             if skills is not None:
                 item['skills'] = skills
-                table.put_item(Item=item)
+                #table.put_item(Item=item)
         #educationalBackground
         if ('educationalBackground' not in item) or (item['educationalBackground'] == '') or educationalBackground_override:
             # make the thing of interest:
@@ -152,7 +164,7 @@ for item in table_response['Items'][0:10]:
             # update this record:
             if educationalBackground is not None:
                 item['educationalBackground'] = educationalBackground
-                table.put_item(Item=item)
+                #table.put_item(Item=item)
         if ('workHistory' not in item) or (item['workHistory'] == '') or workHistory_override:
             # make the thing of interest:
             workHistory = embedded_documents.get_workHistory_set('The Applicant')
@@ -161,8 +173,12 @@ for item in table_response['Items'][0:10]:
             # update this record:
             if workHistory is not None:
                 item['workHistory'] = workHistory
-                table.put_item(Item=item)
-            
+                # table.put_item(Item=item)
+        items_to_change.append(item)
+
+        json_object = json.dumps(items_to_change, indent=4, cls=DecimalEncoder)
+        with open("active_users_details.json", "w") as outfile:
+            outfile.write(json_object)
 
 
         #embedded_documents.return_simple_query('what technical skills does the applicant have?')
