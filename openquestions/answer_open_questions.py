@@ -20,15 +20,15 @@ from decimal import Decimal
 
 def answer_question(id, question_text):
 
-    from transcript_helpers import TranscriptEmbedder
-    
+    sys.path.insert(1,'/Users/aaronmccloud/_work/weekendWork/cheeki/automatic-job-applications/latest-anything-llm/')
+    sys.path.insert(1,'/Users/aaronmccloud/_work/weekendWork/cheeki/automatic-job-applications/latest-anything-llm/enrichment')
 
-    sys.path.insert(1,'/home/frog/repos/automating-jobs-backend/playground/python_db_tests')
+    from transcript_helpers import TranscriptEmbedder
     from jd_tools import CheekiFileHandler
 
     #dynamo_people_table_name = 'cheeki-job-automation-user-table'
     # our credentials file:
-    credentials_filename = "./credentials.yml"
+    credentials_filename = "../enrichment/credentials.yml"
 
     #s3_bucket_name = 'job-automation-uploads'
     #s3_bucket_prefix = 'public'
