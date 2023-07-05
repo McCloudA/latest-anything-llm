@@ -1,3 +1,75 @@
+# Our Fork of AnythingLLM
+
+
+## 1. Matcher: it outputs a file with the matching info (user to jobs)
+  How do I run this?
+
+### 1.a. This starts the AnythingLLM instance
+
+```bash
+cd /docker && docker-compose up -d --build
+```
+
+### 1.b. Starts the watcher
+
+```bash
+cd /docker && docker exec -it --workdir=/app/collector anything-llm python watch.py
+```
+
+### 1.c.  Make sure all dependencies are installed for reccomender
+
+```bash
+cd /reccomender && pip3 install -r requirements.txt
+```
+
+### 1.d.  Run the matcher
+
+```bash
+cd /reccomender && python3 job_recommender_v0.py 
+```
+
+=> should kick out a file w/ the matches
+
+
+## 2. Do enrichement - get's and structures everyone's skills
+
+```bash
+cd /enrichment && python3 enrich_applicant_records.py
+```
+
+and look at the file `active_users_details.json`
+
+
+
+## 3. Ask open-ended questions (OEQs) to ` http://localhost:3000 ` and get an answer?
+• How do I ping this?
+
+```bash
+cd latest-anything-llm/openquestions
+
+python answer_open_questions.py f0e0369b-17fc-4b41-9c59-08adfc603add "How has your work history prepared you to manage a department?"
+```
+
+UUID is the cognitoUuid of the user
+
+## 4. Create the apply-to-job JSON from ` http://localhost:3000 `
+  How do I run this?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+--------------------------------------------------------------------------------------
 # 🤖 AnythingLLM: A full-stack personalized AI assistant
 
 [![Twitter](https://img.shields.io/twitter/url/https/twitter.com/tim.svg?style=social&label=Follow%20%40Timothy%20Carambat)](https://twitter.com/tcarambat) [![](https://dcbadge.vercel.app/api/server/6UyHPeGZAC?compact=true&style=flat)](https://discord.gg/6UyHPeGZAC)
