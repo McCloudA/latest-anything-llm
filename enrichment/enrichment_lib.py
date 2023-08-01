@@ -1,7 +1,10 @@
+#all the stuff we need to underpin the enrichment work
 import json
 import os
 from os.path import join
 import re
+import boto3
+import yaml
 import requests
 import json
 import shutil
@@ -9,11 +12,177 @@ import time
 import openai
 #!pip install toktoken
 import tiktoken
+from boto3.dynamodb.conditions import Key
 
 # TODO: Make a better summary file
 # TODO: Take in a set of (phrase tag/name, phrase, exact/fuzzy) and get where/what context of each.
 # TODO: create a "fill json" structure that fills a json with requested details on demand.
 
+class DataEnricher:
+    def __init__(self,credentials_filename):
+        self.dynamo_people_table_name = 'cheeki-job-automation-user-table'
+        self.dynamo_jobs_table_name = 'cheeki-job-listings'
+        self.s3_bucket_name = 'job-automation-uploads'
+        self.s3_bucket_prefix = 'public'
+
+        with open(credentials_filename, 'r') as ymlfile:
+            cfg = yaml.safe_load(ymlfile)
+            self.our_chatgpt_key = cfg['creds']['chatgpt_key']
+            # AWS credentials
+            self.aws_access_key_id = cfg['creds']['aws_access_key']
+            self.aws_secret_access_key = cfg['creds']['aws_secret_key']
+            self.aws_region_name = 'us-west-2'  # Replace with your desired AWS region
+        
+        # Connect to DynamoDB
+        self.dynamodb = boto3.resource('dynamodb', aws_access_key_id=self.aws_access_key_id,
+                                aws_secret_access_key=self.aws_secret_access_key,
+                                region_name=self.aws_region_name)
+
+        # and to S3 for file IO
+        self.s3 = boto3.client('s3', aws_access_key_id=self.aws_access_key_id, 
+                        aws_secret_access_key=self.aws_secret_access_key, 
+                        region_name=self.aws_region_name)
+        
+        # and get ready to pull information from GPT-3/4
+        self.extractor = DataDetailExtractor(self.our_chatgpt_key)
+    
+    #wrap the extractor functions
+    def extract_job_skills_list(self,job_desc):
+        return self.extractor.extract_job_skills_list(job_desc)
+    def extract_job_credentials_list(self,job_desc):
+        return self.extractor.extract_job_credentials_list(job_desc)
+    def extract_job_brief_desc(self,job_desc):
+        return self.extractor.extract_job_brief_desc(job_desc)
+    def extract_education(self,job_desc):
+        return self.extractor.extract_education(job_desc)
+    def extract_workhistory(self,job_desc):
+        return self.extractor.extract_workhistory(job_desc)
+    def extract_skills(self,job_desc):
+        return self.extractor.extract_skills(job_desc)
+    def extract_address(self,job_desc):
+        return self.extractor.extract_address(job_desc)
+    
+
+    def full_scan_table(self,table_name):
+        table = self.dynamodb.Table(table_name)
+        response = table.scan()
+        data = response['Items']
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            data.extend(response['Items'])
+        return data
+
+    def upload_item(self,item,jobs_table = True):
+        if jobs_table:
+            self.dynamodb.Table(self.dynamo_jobs_table_name).put_item(Item=item)
+        else:
+            self.dynamodb.Table(self.dynamo_people_table_name).put_item(Item=item)
+
+    def create_embedding_description_job(self,item):
+        ret_str = 'This job title is "' + item.get('title') + '".  A short description of this job is: "' + item.get('job_brief_desc').replace('[','').replace(']','') + '"  This job requires the following set of skills: ' + item.get('job_skills_list').replace('[','').replace(']','') + '. '
+        needed_creds = item.get('job_creds_list')
+        if needed_creds is not None and len(needed_creds) > 4:
+            # 4 is a bit arbitary for a string length limit, but should mean "something is required."
+            ret_str = ret_str + ' In addition, the following set of credentials or educational certificates is required: ' + needed_creds
+        return ret_str
+
+
+    def create_embedding_description_applicant(self,item):
+        ret_str = 'This job title is "' + str(item.get('jobsWanted')).replace('[','').replace(']','') + '".  This job requires the following set of skills: ' + str(item.get('skills')).replace('[','').replace(']','') + '. '
+        education = ','.join([i['degree_or_credential'] for i in item.get('education')])
+        if education is not None and len(education) > 4:
+            # 4 is a bit arbitary for a string length limit, but should mean "something is required."
+            ret_str = ret_str + ' In addition, the following set of credentials or educational certificates is required: ' + education
+        return ret_str
+    
+    def answer_open_question(self,description_text,question_text):
+        querystr = 'A job applicant most recently worked a job with the following description: "' +  description_text + '".  How would this individual answer the job application question, \'' + question_text + '\' ?  Please just write a text answer, in around 3 sentences, likely to result in them being hired.'
+        #returned_answer_json = json.loads(embedded_documents.return_simple_query(question_string))
+        outstr, _ = self.extractor.chatgpt_simpleresponse(querystr)
+        return outstr
+
+    def get_resume_text(self,item,filehandler):
+        resume_text = None
+        file_name = item.get('resumeFileName')
+        s3_response = self.s3.list_objects_v2(Bucket=self.s3_bucket_name, Prefix=self.s3_bucket_prefix + '/' + item.get('id'))
+        # pull the first one that matches our filename
+        target_file = None
+        for obj in s3_response['Contents']:
+            if file_name in obj['Key']:
+                target_file = obj['Key']
+                break
+        if target_file is not None:
+            self.s3.download_file(self.s3_bucket_name, target_file, './temp_files/' + file_name)
+            resume_text = filehandler.text_from_file('./temp_files/' + file_name)
+        return resume_text
+    
+
+    def backup_jobs_db(self):
+        table_response = self.full_scan_table(self.dynamo_jobs_table_name)
+        dynamo_jobs_table_backup = []
+        for item in table_response:
+            dynamo_jobs_table_backup.append(item)
+
+        json_object = json.dumps(dynamo_jobs_table_backup, indent=4, cls=DecimalEncoder)
+        with open("./dynamo_jobs_table_backup.json", "w") as outfile:
+            outfile.write(json_object)
+
+    def backup_people_db(self):
+        table_response = self.full_scan_table(self.dynamo_people_table_name)
+        dynamo_people_table_backup = []
+        for item in table_response:
+            dynamo_people_table_backup.append(item)
+
+        json_object = json.dumps(dynamo_people_table_backup, indent=4, cls=DecimalEncoder)
+        with open("./dynamo_people_table_backup.json", "w") as outfile:
+            outfile.write(json_object)
+
+    # ask for a 'uid, a 'frame', or 'all' records.
+    def get_records(self, type, key_value, key_name,jobs_table = True):
+        if jobs_table:
+            table = self.dynamodb.Table(self.dynamo_jobs_table_name)
+        else:
+            table = self.dynamodb.Table(self.dynamo_people_table_name)
+            
+        if type == 'uid':
+
+            ##########THIS IS IT###########
+            ####HERE key_name = 'url' and key_value = <the_url_from_the_DB>
+            key_condition_expression = Key(key_name).eq(key_value)
+            table_response = table.query(KeyConditionExpression=key_condition_expression)['Items']
+            #############################
+
+            #key_condition_expression = "#our_val = :value  AND #our_job_board_id = :job_board_id_val"
+            #expression_attribute_names = {"#our_val": key_name, "#our_job_board_id": "id"}
+            #expression_attribute_values = {":value": {"S": key_value}, ":job_board_id_val": {"S": jbid}}
+            #table_response = table.query(
+            #    TableName=self.dynamo_people_table_name,
+            #    KeyConditionExpression=key_condition_expression,
+            #    ExpressionAttributeNames=expression_attribute_names,
+            #    ExpressionAttributeValues=expression_attribute_values
+            #)
+
+        elif type == 'frame':
+            table_response = table.scan()['Items']
+        elif type == 'all':
+            table_response = self.full_scan_table(dynamo_people_table_name)
+        else:
+            table_response = None
+        return table_response
+    
+
+
+
+# For pretty JSON files
+class DecimalEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return str(obj)
+        if isinstance(obj,np.ndarray):
+            return obj.tolist()
+        if isinstance(obj, set):
+            return list(obj)
+        return json.JSONEncoder.default(self, obj)
 
 class DataDetailExtractor:
 
@@ -127,7 +296,7 @@ class DataDetailExtractor:
         if prompt_token_count > gpt_3_5_turbo_max_tokens:
             selected_model = "gpt-4"
             sleep_time = 60.0 # 10k tokens/min limit
-        if prompt_token_count > gpt_4_0_32k_max_tokens:
+        if prompt_token_count > gpt_4_0_turbo_max_tokens:
             selected_model = "gpt-4-32k"
             sleep_time = 60.0 # 10k tokens/min limit
         # Truncate the prompt if it exceeds the token limit for the largest model

@@ -10,6 +10,8 @@ import yaml
 import boto3
 from decimal import Decimal
 
+# TODO: instead of local file handoff, make a structure to use the API to send in files instead.  Then check the backup for this, plus backup pinecone.
+
 class DecimalEncoder(json.JSONEncoder):
   def default(self, obj):
     if isinstance(obj, Decimal):
@@ -97,7 +99,7 @@ table_response = table.scan()
 #     print(id)
 # brek
 items_to_change = []
-for item in table_response['Items']: #[0:10]:
+for item in table_response['Items'][0:10]: # or leave this off
 
     id = item['id']
 
